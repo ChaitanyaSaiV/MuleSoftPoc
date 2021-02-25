@@ -1,0 +1,285 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:vm="http://www.mulesoft.org/schema/mule/vm" xmlns:s3="http://www.mulesoft.org/schema/mule/s3"
+	xmlns:os="http://www.mulesoft.org/schema/mule/os"
+	xmlns:eilog="http://www.mulesoft.org/schema/mule/eilog" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/eilog http://www.mulesoft.org/schema/mule/eilog/current/mule-eilog.xsd
+http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd
+http://www.mulesoft.org/schema/mule/s3 http://www.mulesoft.org/schema/mule/s3/current/mule-s3.xsd
+http://www.mulesoft.org/schema/mule/vm http://www.mulesoft.org/schema/mule/vm/current/mule-vm.xsd">
+    <vm:config name="VM_Config" doc:name="VM Config" doc:id="0b659303-f3f6-48d9-858c-21a0c7a707bb" >
+        <vm:queues >
+            <vm:queue queueName="processJobIdQ" maxOutstandingMessages="${maxOutStandingMessages}" />
+        </vm:queues>
+    </vm:config>
+    <flow name="read-job-dataFlow1" doc:id="86fc9918-d1c1-44b3-ae1a-af2410e0bf6d" >
+        <http:listener doc:name="Listener" doc:id="7deca293-1877-47a2-9354-49c877782a4f" config-ref="HTTP_Listener_config" path="read-job-id" />
+        <set-variable value="#[uuid()]" doc:name="txId" doc:id="163ca803-98a3-4257-9e68-e330c666ded9" variableName="txId" />
+        <vm:publish doc:name="Publish" doc:id="8ded411d-ec4c-462b-a4da-e2e05408833e" config-ref="VM_Config" queueName="processJobIdQ" sendCorrelationId="ALWAYS" correlationId="#[vars.txId]"/>
+            <set-payload value="#[%dw 2.0
+output application/json
+---
+{
+    TransactionId : vars.txId
+}]" doc:name="Set Payload" doc:id="3e69619e-ed94-487b-ab38-1efac8b12fad" />
+    </flow>
+    <flow name="read-job-dataFlow" doc:id="333b38d1-65ec-46f7-a4c4-faeb13419846">
+<!--         <set-variable value="#[attributes.queryParams.key]" doc:name="Set Variable" doc:id="de62a7ac-115d-4b43-918e-75f001b06727" variableName="key"/> -->
+		<vm:listener doc:name="Listener" doc:id="290faa53-7228-43fa-9351-ba3273e76e43" config-ref="VM_Config" queueName="processJobIdQ"/>
+        <ee:transform doc:name="Transform Message" doc:id="d18f1a0e-2706-4f98-8ed0-725dc4054068">
+            <ee:message>
+            </ee:message>
+            <ee:variables>
+                <ee:set-variable variableName="jobId"><![CDATA[%dw 2.0
+output application/json
+---
+payload.jobId]]></ee:set-variable>
+                <ee:set-variable variableName="locator"><![CDATA[%dw 2.0
+output application/json
+---
+payload.locator]]></ee:set-variable>
+                <ee:set-variable variableName="maxRecords"><![CDATA[%dw 2.0
+output application/json
+---
+payload.maxRecords]]></ee:set-variable>
+                <ee:set-variable variableName="key" ><![CDATA[%dw 2.0
+output application/json
+---
+payload.key]]></ee:set-variable>
+                <ee:set-variable variableName="transactionProperties" ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	TxId : attributes.correlationId
+	
+}]]></ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+        <s3:initiate-multipart-upload doc:name="Initiate multipart upload" doc:id="a565ad95-9685-45de-8902-1373b77313a3" bucketName="${aws.s3.bucket.name}" key="#[vars.key]" acl="BUCKET_OWNER_READ" target="uploadId" config-ref="Amazon_S3_Configuration">
+	      <reconnect frequency="${api.s3.retry.delay}" count="${api.s3.retry.count}" />
+	      <s3:object-metadata contentType="text/csv; charset=UTF-8" storageClass="STANDARD_IA" />
+	    </s3:initiate-multipart-upload>
+        <flow-ref doc:name="get-oauth-token" doc:id="7a764958-0afc-4d16-850c-67688c959fe7" name="get-oauth-token" />
+		<set-variable value="#[1 to 30]" doc:name="Set Variable" doc:id="1370afbe-ab59-4489-be5d-e7956a8d431d" variableName="range"/>
+		<eilog:info doc:name="Info" doc:id="0081aca7-bcd9-4141-bf7f-0fe2df984069" msg='#["Invoking bulk query with jobId: " ++ vars.jobId]' transactionProperties="#[vars.transactionProperties]"/>
+        <set-variable value="#[null]" doc:name="Set Variable" doc:id="cfadeeea-31db-49ab-9620-a41c445ee4cc" variableName="locator" />
+		<flow-ref doc:name="calculate-loop-size" doc:id="efae2010-b171-4fea-bc0b-67c4d322d221" name="calculate-loop-size" />
+		<flow-ref doc:name="source-jobId-query-flow" doc:id="2a1f1767-8e70-48fc-9660-011e545a28c9" name="source-jobId-query-flow" />
+		<flow-ref doc:name="Flow Reference" doc:id="33de72a6-4166-4d8b-8fe5-99a3cec20c6c" name="aws-upload-util-complete-multipart"/>
+		<eilog:info doc:name="Info" doc:id="dcd0caf6-e910-44e8-a061-b1c8ba6ef228" msg='#["Processing completed for JobId: " ++ Mule::p("query.api.path") ++ "/" ++ vars.jobId]' transactionProperties="#[vars.transactionProperties]"/>
+    </flow>
+    
+    
+    
+    <sub-flow name="api-invoke-metadata" doc:id="03be2937-3bfa-4beb-aa34-3a75248ff56a" >
+        <choice doc:name="Choice" doc:id="dfd5528a-ff01-4afc-a5c6-2cafab4a741e">
+            <when expression="#[vars.oauthRetry=='true']">
+                <until-successful maxRetries="${sourceOrg.apiUntilSuccessful.maxRetries}" doc:name="Until Successful" doc:id="d1fe0799-df60-4622-be5a-f025e06ab84f" millisBetweenRetries="${sourceOrg.apiUntilSuccessful.millisBetweenRetries}">
+                    <try doc:name="Try" doc:id="c3608443-8db6-4549-96ff-0b58c734b5ee">
+                        <http:request method="GET" doc:name="BulkQueryRequest" doc:id="eee74470-531a-4ef3-9455-3e03fd8d0a27" config-ref="sourceOrg_HTTP_Request_Configuration" path="#[vars.jobIdQueryPath]" responseTimeout="${sourceOrg.responseTimeout}">
+                            <http:headers><![CDATA[#[output application/java
+---
+{
+  "Authorization" : vars.authorizationHeader,
+  "Sforce-Auto-Assign" : "FALSE"
+}]]]></http:headers>
+                            <http:response-validator>
+                                <http:success-status-code-validator values="${successStatusCodes.withOauth}" />
+                            </http:response-validator>
+                        </http:request>
+                        <error-handler ref="api-connectivity-error-handling" />
+                    </try>
+                </until-successful>
+            </when>
+            <otherwise>
+                <until-successful maxRetries="${sourceOrg.apiUntilSuccessful.maxRetries}" doc:name="Until Successful" doc:id="9303a64e-2152-4e61-b5d5-b6abc09ce2c4" millisBetweenRetries="${sourceOrg.apiUntilSuccessful.millisBetweenRetries}">
+                    <try doc:name="Try" doc:id="6d043508-8a55-4310-b7fb-f4c2130ce677">
+                        <http:request method="GET" doc:name="BulkQueryRequest" doc:id="bec681f3-2de1-4b17-b67d-1ca3e60afb1f" config-ref="sourceOrg_HTTP_Request_Configuration" path="#[vars.jobIdQueryPath]" responseTimeout="${sourceOrg.responseTimeout}">
+                            <http:headers><![CDATA[#[output application/java
+---
+{
+    "Authorization" : vars.authorizationHeader
+}]]]></http:headers>
+                            <http:response-validator>
+                                <http:success-status-code-validator values="${successStatusCodes.withoutOauth}" />
+                            </http:response-validator>
+                        </http:request>
+                        <error-handler ref="api-connectivity-error-handling" />
+                    </try>
+                </until-successful>
+            </otherwise>
+        </choice>
+    </sub-flow>
+    
+    
+    
+    
+    <sub-flow name="invoke-api-flow" doc:id="89efb804-7aa8-4a8c-a2af-359a251ba54b" >
+        <choice doc:name="Choice" doc:id="1d9b273f-be52-4103-a12b-af77fd69e324">
+            <when expression="#[vars.oauthRetry=='true']">
+                <until-successful maxRetries="${sourceOrg.apiUntilSuccessful.maxRetries}" doc:name="Until Successful" doc:id="c9e1714f-dcef-44ad-8c6d-362a9acd7122" millisBetweenRetries="${sourceOrg.apiUntilSuccessful.millisBetweenRetries}">
+                    <try doc:name="Try" doc:id="fc47e829-ca1c-4fe9-8658-5465c9bf5a60">
+                        <http:request method="GET" doc:name="BulkQueryRequest" doc:id="6e169fd1-6b87-4a1a-b0fa-375dbe2a219d" config-ref="sourceOrg_HTTP_Request_Configuration" path="#[vars.jobIdQueryPath]" responseTimeout="${sourceOrg.responseTimeout}" outputMimeType='application/csv; escape="\""; separator=","'>
+                            <http:headers><![CDATA[#[output application/java
+---
+{
+  "Authorization" : vars.authorizationHeader,
+  "Sforce-Auto-Assign" : "FALSE"
+}]]]></http:headers>
+                            <http:response-validator>
+                                <http:success-status-code-validator values="${successStatusCodes.withOauth}" />
+                            </http:response-validator>
+                        </http:request>
+                        <error-handler ref="api-connectivity-error-handling" />
+                    </try>
+                </until-successful>
+            </when>
+            <otherwise>
+                <until-successful maxRetries="${sourceOrg.apiUntilSuccessful.maxRetries}" doc:name="Until Successful" doc:id="1119d62c-1c5b-41c4-a378-0a834cf855d2" millisBetweenRetries="${sourceOrg.apiUntilSuccessful.millisBetweenRetries}">
+                    <try doc:name="Try" doc:id="e068fb31-89c6-4af9-819e-eb63676b9856">
+                        <http:request method="GET" doc:name="BulkQueryRequest" doc:id="f59958e9-19fe-4d90-90f3-f634e2e62f42" config-ref="sourceOrg_HTTP_Request_Configuration" path="#[vars.jobIdQueryPath]" responseTimeout="${sourceOrg.responseTimeout}" outputMimeType='application/csv; escape="\""; separator=","'>
+                            <http:headers><![CDATA[#[output application/java
+---
+{
+    "Authorization" : vars.authorizationHeader
+}]]]></http:headers>
+                            <http:response-validator>
+                                <http:success-status-code-validator values="${successStatusCodes.withoutOauth}" />
+                            </http:response-validator>
+                        </http:request>
+                        <error-handler ref="api-connectivity-error-handling" />
+                    </try>
+                </until-successful>
+            </otherwise>
+        </choice>
+    </sub-flow>
+    <sub-flow name="handle-oauth-token-expiry">
+    <set-variable variableName="oauthRetry" value="true" doc:name="setOauthRetry"/>
+    <flow-ref name="oauth-api-call" doc:name="oauth-api-call" />
+       
+		<os:store doc:name="Store-sourceAuthorizationHeader" doc:id="557ea4b9-df02-41b0-b0f6-a829503e2c4e" key="sourceAuthorizationHeader" objectStore="Object_store">
+          <os:value><![CDATA[#[vars.authorizationHeader]]]></os:value>
+        </os:store>
+        <eilog:info doc:name="eilog(info)" msg="Oauth token expired, so regenerated source API call Oauth token." transactionProperties="#[vars.transactionProperties]"/>
+  </sub-flow>
+    <sub-flow name="process-api-execution" doc:id="30a281a7-3eb9-400b-9905-cd11bf73dd9e">
+    <flow-ref doc:name="invoke-api-flow" doc:id="bac77f65-39e4-44a1-a12e-bac6fe1a2757"
+      name="invoke-api-flow"/>
+		<choice doc:name="Choice" doc:id="dfec0176-48c9-410c-99a7-46abaa327caf">
+      <when expression="#[message.attributes.statusCode==401]">
+        <eilog:info doc:name="Info" doc:id="4f731bff-926e-4b67-a8e5-8b5792862b6f"
+          msg="Target call failed with oauth token error, so fetching new oauth token to retry"
+          transactionProperties="#[vars.transactionProperties]"/>
+                <flow-ref doc:name="Flow Reference" doc:id="0d5cc618-07cf-4dd1-a5c2-708c15fe615d" name="handle-oauth-token-expiry"/>
+                <flow-ref doc:name="invoke-api-flow" doc:id="6fc9205c-54ea-433f-89f1-6248151181c6" name="invoke-api-flow" />
+      </when>
+    </choice>
+  </sub-flow>
+    <sub-flow name="calculate-loop-size" doc:id="d45ab2a0-c7d1-45fb-a344-1a1734c76f5d" >
+        <set-variable value='#[%dw 2.0
+output application/json
+---
+Mule::p("query.api.path") ++ "/" ++ vars.jobId]' doc:name="jobIdQueryPath" doc:id="82dc6803-8abb-4baf-8fb5-04aeafa7ec5e" variableName="jobIdQueryPath" />
+        <flow-ref doc:name="api-invoke-metadata" doc:id="6464d2ce-4cbf-49dd-8811-ba53cb687c31" name="api-invoke-metadata" />
+		<ee:transform doc:name="Transform Message" doc:id="f536fd8a-8f29-40f8-bb3a-e7ac2cb332e9" >
+            <ee:message >
+            </ee:message>
+            <ee:variables >
+                <ee:set-variable variableName="loopSize" ><![CDATA[%dw 2.0
+output application/java
+---
+ceil((payload.numberRecordsProcessed as Number) / (vars.maxRecords default payload.numberRecordsProcessed) as Number )]]></ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+        <ee:transform doc:name="Copy_of_Transform Message" doc:id="60ca9f57-ca9f-4c2b-a815-6fe871d6fb0e" >
+            <ee:message />
+            <ee:variables >
+                <ee:set-variable variableName="iterationArray" ><![CDATA[%dw 2.0 
+output application/json
+fun prepareList(list:Array, maxSize: Number) = if(sizeOf(list) >= maxSize )
+list
+else
+prepareList(list ++ [(sizeOf(list) + 1) as Number],maxSize)
+---
+prepareList([],vars.loopSize)]]></ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+    </sub-flow>
+    <sub-flow name="source-jobId-query-flow" doc:id="5339f109-a686-49d6-b08a-9a59e4119611" >
+        <set-variable value="#[true]" doc:name="Set Variable" doc:id="ff060525-70f5-469a-83a0-4e841fecd663" variableName="firstCall"/>
+        
+        
+		<flow-ref doc:name="aws-upload-util-initiate-variable" doc:id="4cd9bd1a-be91-4b92-884d-84474017091f" name="aws-upload-util-initiate-variable"/>
+		<try doc:name="Try" doc:id="ef3e592c-8f0f-4bd5-9332-86b8dd90deb5" >
+            <foreach doc:name="For Each" doc:id="5f01c2ea-821c-43f8-849d-490d2268ff3b" collection="#[vars.iterationArray]">
+            <choice doc:name="Choice" doc:id="ac36a81b-8385-4aca-8a75-3855791ef0f9">
+                <when expression='#[vars.firstCall or vars.locator != "null"]'>
+                    <ee:transform doc:name="Transform Message" doc:id="f751ee50-bf81-4df6-a3d0-193f78986c88">
+                            <ee:message>
+                            </ee:message>
+                            <ee:variables >
+                                <ee:set-variable variableName="transactionProperties" ><![CDATA[%dw 2.0
+output application/json
+---
+vars.transactionProperties ++ { Iteration : payload }]]></ee:set-variable>
+                                <ee:set-variable variableName="jobIdQueryPath" ><![CDATA[%dw 2.0
+output application/json
+---
+Mule::p("query.api.path") ++ "/" ++ vars.jobId ++ "/results" ++ 
+(
+	if(vars.locator != null and vars.maxRecords != null) 
+		"?locator=" ++ vars.locator ++ "&maxRecords=" ++ vars.maxRecords
+	else if(vars.locator != null)
+		"?locator=" ++ vars.locator
+	else if(vars.maxRecords != null)
+		"?maxRecords=" ++ vars.maxRecords
+	else
+		""		
+	)]]></ee:set-variable>
+                            </ee:variables>
+                        </ee:transform>
+                        <eilog:info doc:name="Info" doc:id="eb77e171-5c75-4201-a5f9-0f8db2a258cf" msg='#["data fetch started************"]' transactionProperties="#[vars.transactionProperties]"/>
+						<flow-ref doc:name="process-api-execution" doc:id="eb5d9031-340a-4174-ab35-ca025da10a0c" name="process-api-execution" />
+						<eilog:info doc:name="Info" doc:id="d726bed3-81c2-41d2-a0ea-fcf1d24f5d1b" msg='#["data fetch finished*************"]' transactionProperties="#[vars.transactionProperties]"/>
+						<ee:transform doc:name="Transform Message" doc:id="9b9a9d20-33df-46c8-bbf7-780cdac1a73f">
+                        <ee:message>
+                        </ee:message>
+                        <ee:variables>
+                            <ee:set-variable variableName="locator"><![CDATA[%dw 2.0
+output application/java
+---
+attributes."Headers"."sforce-locator"]]></ee:set-variable>
+                            <ee:set-variable variableName="noOfRecords"><![CDATA[%dw 2.0
+output application/java
+---
+(vars.noOfRecords default 0) + (attributes."Headers"."sforce-numberofrecords" as Number)]]></ee:set-variable>
+                                <ee:set-variable variableName="firstCall"><![CDATA[%dw 2.0
+output application/java
+---
+false]]></ee:set-variable>
+								<ee:set-variable variableName="currentRecordCount" ><![CDATA[%dw 2.0
+output application/java
+---
+attributes."Headers"."sforce-numberofrecords"]]></ee:set-variable>
+                        </ee:variables>
+                    </ee:transform>
+<!--                         <flow-ref doc:name="Flow Reference" doc:id="ac0a5c36-dbdc-431c-aff5-0d5ae9e87503" name="file-writer-subflow"/> -->
+                        <flow-ref doc:name="Flow Reference" doc:id="6c3a5aeb-8d4c-407b-8ac1-a0689129a1cf" name="set-part-data"/>
+						<eilog:info doc:name="Info" doc:id="2a03e354-83d6-4d0e-a292-e2bec87e2e1b" msg='#["Processed so far: " ++ vars.noOfRecords]' transactionProperties="#[vars.transactionProperties]"/>
+                  <set-payload value="#[null]" doc:name="Clear Payload" doc:id="db611c2a-35fb-4b07-a0e2-e91ec45ebe7c" />
+                </when>
+                <otherwise>
+                    <raise-error doc:name="Raise error" doc:id="982381e1-6bd3-43fe-a309-ed61e101e86b" type="BULK_QUERY:NO_MORE_DATA" />
+                </otherwise>
+            </choice>
+        </foreach>
+            <error-handler >
+                <on-error-continue enableNotifications="false" logException="false" doc:name="On Error Continue" doc:id="a55132dc-1ad8-40fb-bf5d-8b39331feea3" >
+                    <eilog:log doc:name="Log" doc:id="00e99fcc-ec75-4205-a224-808aa437095f" msg='#["Fetching records completed: " ++ vars.noOfRecords]'/>
+                </on-error-continue>
+            </error-handler>
+        </try>
+    </sub-flow>
+</mule>

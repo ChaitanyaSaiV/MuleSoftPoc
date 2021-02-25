@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:dw="http://www.mulesoft.org/schema/mule/ee/dw"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns:file="http://www.mulesoft.org/schema/mule/file"
+  xmlns:compression="http://www.mulesoft.org/schema/mule/compression"
+  xmlns:java="http://www.mulesoft.org/schema/mule/java" xmlns:os="http://www.mulesoft.org/schema/mule/os"
+  xmlns:eitx="http://www.mulesoft.org/schema/mule/eitx" xmlns:s3="http://www.mulesoft.org/schema/mule/s3"
+  xmlns:eilog="http://www.mulesoft.org/schema/mule/eilog"
+  xmlns:vm="http://www.mulesoft.org/schema/mule/vm" xmlns:scripting="http://www.mulesoft.org/schema/mule/scripting"
+  xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns="http://www.mulesoft.org/schema/mule/core"
+  xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/ee/dw http://www.mulesoft.org/schema/mule/ee/dw/current/dw.xsd 
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd 
+  http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd 
+  http://www.mulesoft.org/schema/mule/vm http://www.mulesoft.org/schema/mule/vm/current/mule-vm.xsd 
+  http://www.mulesoft.org/schema/mule/scripting http://www.mulesoft.org/schema/mule/scripting/current/mule-scripting.xsd 
+  http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+  http://www.mulesoft.org/schema/mule/eilog http://www.mulesoft.org/schema/mule/eilog/current/mule-eilog.xsd
+  http://www.mulesoft.org/schema/mule/s3 http://www.mulesoft.org/schema/mule/s3/current/mule-s3.xsd
+  http://www.mulesoft.org/schema/mule/eitx http://www.mulesoft.org/schema/mule/eitx/current/mule-eitx.xsd
+  http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd
+  http://www.mulesoft.org/schema/mule/java http://www.mulesoft.org/schema/mule/java/current/mule-java.xsd
+  http://www.mulesoft.org/schema/mule/compression http://www.mulesoft.org/schema/mule/compression/current/mule-compression.xsd
+  http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd">
+
+ <s3:config name="Amazon_S3_Configuration" doc:name="Amazon S3 Configuration" doc:id="11cb1332-1640-4213-8b6b-decc0c5b30da" >
+		<s3:basic-connection accessKey="${aws.s3.accessKey}" secretKey="${aws.s3.secretKey}" region="US_WEST_2"/>
+	</s3:config>
+
+   <!--  <flow name="ei-mule-account-se-syncFlow" doc:id="d7d9b8a1-e038-4c1b-a73d-db9cce0cd276" >
+		<http:listener doc:name="Listener" doc:id="eeb38c9d-9c55-4d66-8cec-fbc211a900bb" config-ref="HTTP_Listener_config" path="/aws"/>
+		<flow-ref doc:name="Flow Reference" doc:id="c1feb6e6-30f6-45fd-9688-9be63aee64dc" name="amazon-s3-write-subflow"/>
+	</flow>
+
+  <sub-flow name="amazon-s3-write-subflow" doc:id="7a4e6c70-7af1-41d0-896a-9d862640aca0">
+    <set-variable value="#[attributes.queryParams.key]" doc:name="Set Variable" doc:id="f506aef1-dcd6-4980-9996-02de86d0e109" variableName="key"/>
+		<eilog:info doc:name="Start Process Info" doc:id="8c78b284-73de-4824-815b-2eb595664af0"
+      msg="#[&quot;Start Process 'amazon-s3-write-subflow'&quot;]"/>
+    <s3:initiate-multipart-upload doc:name="Initiate multipart upload"
+      doc:id="5d1a1ca3-0386-42e7-aa31-dc9ef5a19127" bucketName="${aws.s3.bucket.name}" key="#[vars.key]"
+      acl="BUCKET_OWNER_READ" target="uploadId" config-ref="Amazon_S3_Configuration">
+      <reconnect frequency="${api.s3.retry.delay}" count="${api.s3.retry.count}"/>
+      <s3:object-metadata contentType="text/csv; charset=UTF-8" storageClass="STANDARD_IA"/>
+    </s3:initiate-multipart-upload>
+		<flow-ref doc:name="aws-upload-read-source-data" doc:id="b244a7e1-40d8-4418-a550-768dafa4c1be" name="aws-upload-read-source-data"/>
+		<flow-ref doc:name="aws-upload-insert-s3" doc:id="40dc34cd-d53a-45ec-bdc8-cb169614be58" name="aws-upload-insert-s3"/>
+  </sub-flow> -->
+
+ <!--  <sub-flow name="aws-upload-read-source-data" doc:id="c5778280-fc7b-4261-ac1e-2438b45d1f0e" >
+		<logger level="INFO" doc:name="Logger" doc:id="ba6bbbae-5cb9-422e-baf6-5472d81c2e39" message="hi"/>
+		<flow-ref doc:name="metadata_fetch" doc:id="deb32398-d43d-480e-b372-45fa814fe2db" name="metadata_fetch" />
+		<flow-ref doc:name="actual_data_fetch" doc:id="ebb43f6c-84a8-4d55-bf10-7d7db22041c1" name="actual_data_fetch" />
+	</sub-flow> -->
+	<!-- <sub-flow name="aws-upload-insert-s3" doc:id="cd2422d5-d96f-4c8f-a3cd-f1829edf85b2" >
+		<eilog:info doc:name="Info" doc:id="88750c66-bc80-410b-84eb-a1e4844e2f01" msg='#["*************************** Got data from source"]' />
+		<set-variable value="READ_SRC" doc:name="Set READ_SRC to transaction progress" doc:id="a8c23f8f-3aed-4e09-987a-cc1d49df5401" variableName="x-transaction-state" />
+		<eilog:info doc:name="Info" doc:id="8a1599af-572f-4212-a6f4-714e5bab7e9c" msg='#["*************************** initializing variables "]' />
+		<flow-ref doc:name="Flow Reference" doc:id="95419ac4-8b6e-42de-a66e-1ea79a2adfea" name="aws-upload-util-initiate-variable"/>
+		<eilog:info doc:name="Info" doc:id="3158e98e-40fa-4872-8957-351a1171cd5d" msg='#["*************************** about to start loop"]' />
+		<foreach doc:name="Iterate Trough Data" doc:id="9fe6a7a7-6539-4dd0-9b08-afe75425c3b8" batchSize="${record.batch.size}">
+      <flow-ref doc:name="set-part-data" doc:id="f0e1f1ea-fc46-4e90-9fac-34cb5d16ab7d" name="set-part-data" />
+      <set-payload value="#[null]" doc:name="Clear Payload" doc:id="ecbb34b2-2e9c-41e6-8168-2ed35ae3b075" />
+    </foreach>
+		<eilog:info doc:name="End Process Info" doc:id="3e5f2a68-6709-4fed-bf1c-7ba56f316302" msg="#[&quot;End Process 'amazon-s3-write-subflow'&quot;]" />
+	</sub-flow> -->
+	<sub-flow name="aws-upload-util-complete-multipart" doc:id="9da7276b-9214-4611-b266-2bd2c97caa02" >
+		<s3:complete-multipart-upload doc:name="Complete multipart upload" doc:id="c319d857-b06d-4f79-950c-d6f70f6807e8" config-ref="Amazon_S3_Configuration" bucketName="${aws.s3.bucket.name}" key="#[vars.key]" uploadId="#[vars.uploadId]">
+      <reconnect frequency="${api.s3.retry.delay}" count="${api.s3.retry.count}" />
+      <s3:part-e-tags><![CDATA[#[vars.partsArray]]]></s3:part-e-tags>
+    </s3:complete-multipart-upload>
+	</sub-flow>
+	<sub-flow name="aws-upload-util-initiate-variable" doc:id="9bcc4c94-964b-4773-a3c1-d1435f9e6850" >
+		<set-variable value="#[0]" doc:name="Initialize partIndex" doc:id="f1d6465f-0f29-40cb-a268-b943532076b4" variableName="partIndex" />
+		<set-variable value="#['']" doc:name="Initialize partData" doc:id="5cf395df-6518-43ba-b925-40a0db62f6bb" variableName="partData" />
+		<set-variable value="#[[]]" doc:name="Initialize partsArray" doc:id="50dbcd25-8f20-46b5-a0a3-a7f15cf830f8" variableName="partsArray" />
+	</sub-flow>
+	<sub-flow name="set-part-data" doc:id="b74c39b0-10c0-443c-b3bd-d796f4cad2d3">
+	<ee:transform doc:name="Transform Message" doc:id="18ac1497-5bb8-4511-90c4-a6eadbd66dfc">
+      <ee:message>
+        <ee:set-payload><![CDATA[%dw 2.0
+input payload application/csv separator=',', escape=true
+output application/java 
+---
+payload]]></ee:set-payload>
+      </ee:message>
+			
+    </ee:transform>
+		<set-variable
+      value="#[vars.partData ++ write(payload, 'application/csv', {'ignoreEmptyLine':'false', 'header':(vars.counter == 1), 'quoteValues':'true', 'quoteHeader':'true', 'encoding':'UTF-8', 'streaming' : 'true'})]"
+      doc:name="Set partData" doc:id="977b2877-0a23-41f7-9696-ac5717a41e31" variableName="partData"/> 
+    <set-variable doc:name="Set partSize" doc:id="3eb126b1-6d72-4fc0-a72c-3233a4e25baf"
+      variableName="partSize" value="#[sizeOf(vars.partData)]"/>
+    <choice doc:name="validate payload size" doc:id="8822d8da-4332-4961-93c4-aa495f939230">
+      <when expression="#[vars.partSize &gt; ${min.part.size}]">
+        <eilog:info doc:name="Info" doc:id="1eda8d05-9934-4445-bb32-4651381b78e5" msg='#["*************************** payload size is more the 5 mb"]' transactionProperties="#[vars.transactionProperties]"/>
+				<set-variable value="#[(vars.partIndex as Number + 1)]" doc:name="increase partIndex"
+          doc:id="047dccf0-8395-46d9-a28b-fee4afff7957" variableName="partIndex"/>
+        <set-variable value="false" doc:name="Set isLast" doc:id="6ab32b76-5b0d-4a3d-820d-530652115856"
+          variableName="isLast"/>
+        <flow-ref doc:name="upload-part-data" doc:id="e302b30a-6ec0-4022-9bb3-2fcbe9e9392a"
+          name="upload-part-data"/>
+      </when>
+      <when expression="#[vars.currentRecordCount &lt; vars.maxRecords]">
+        <eilog:info doc:name="Info" doc:id="b4cb73d5-5ad7-455d-a5a9-1b8084e8c6ba" msg='#["*************************** last iteration "]' transactionProperties="#[vars.transactionProperties]"/>
+				<set-variable value="#[(vars.partIndex as Number + 1)]" doc:name="increase partIndex"
+          doc:id="57a3ba4f-64a4-4816-81c8-0e52c5fec17a" variableName="partIndex"/>
+        <set-variable value="true" doc:name="Set isLast" doc:id="ab6296c8-5cd3-424d-b304-c54c8b6707e6"
+          variableName="isLast"/>
+        <flow-ref doc:name="upload-part-data" doc:id="b3a4fb22-c1cd-41a9-8be6-752fe9a9c8d7"
+          name="upload-part-data"/>
+      </when>
+      <otherwise>
+        <eilog:info doc:name="Info" doc:id="8ef6d96e-0f92-4f63-9e9e-8b01a6d6c4d2"
+          msg='#["Data size is less than 5Mb. will append in payload"]' transactionProperties="#[vars.transactionProperties]"/>
+      </otherwise>
+    </choice>
+  </sub-flow>
+
+  <sub-flow name="upload-part-data" doc:id="47372854-6761-4c0b-bb91-dfe59ff8d03a">
+    <eilog:info doc:name="Info" doc:id="5fe69b28-fb9e-45cc-9cf1-ce116c99cb72"
+      msg='#["*************************** Upload part Flow started partSize: " ++ vars.partSize]' transactionProperties="#[vars.transactionProperties]"/>
+    <set-variable value="#[vars.partData as Binary]" doc:name="Set binaryPartData"
+      doc:id="1628c9d3-c24e-47cb-b738-7f963921fdeb" variableName="binaryPartData"/>
+    <s3:upload-part partSize="#[sizeOf(vars.binaryPartData)]" doc:name="Upload part"
+      doc:id="0ec5103b-0245-4b69-a42b-0c5d287e3949" config-ref="Amazon_S3_Configuration"
+      bucketName="${aws.s3.bucket.name}" key="#[vars.key]" uploadId="#[vars.uploadId]"
+      partNumber="#[vars.partIndex]" isLastPart="#[vars.isLast]">
+      <reconnect frequency="${api.s3.retry.delay}" count="${api.s3.retry.count}"/>
+      <s3:content><![CDATA[#[(vars.partData default "")]]]></s3:content>
+    </s3:upload-part>
+		<eilog:info doc:name="Info" doc:id="a18911f8-1668-4c48-bcd7-15d3edd3d9ee" msg='#["***************************  Uploaded part done, resetting variables"]' transactionProperties="#[vars.transactionProperties]"/>
+		<ee:transform doc:name="Transform to PartETag object" doc:id="69d5eda4-8c33-420f-91aa-a01d97578cb2">
+      <ee:message>
+        <ee:set-payload><![CDATA[%dw 2.0
+output application/java
+---
+{
+  etag: payload.etag,
+  partNumber: payload.partNumber
+} as Object{class:"org.mule.extension.s3.api.model.PartETag"}
+]]></ee:set-payload>
+      </ee:message>
+    </ee:transform>
+    <ee:transform doc:name="Transform Message" doc:id="18da7567-4024-4958-ba1b-cc3d5c32e243" >
+            <ee:message >
+            </ee:message>
+            <ee:variables >
+                <ee:set-variable variableName="partData" ><![CDATA['']]></ee:set-variable>
+                <ee:set-variable variableName="partsArray" ><![CDATA[%dw 2.0
+output application/java
+---
+vars.partsArray + payload]]></ee:set-variable>
+                <ee:set-variable variableName="x-transaction-state" ><![CDATA["XFORM_TGT"]]></ee:set-variable>
+            </ee:variables>
+        </ee:transform> 
+      
+      
+   
+		<!--  <scripting:execute engine="groovy" doc:id="e7343302-0a1c-4570-92a7-df3ea07b8202"
+      doc:name="Add part info to parts collection">
+      <scripting:code>vars.partsArray.add(payload)</scripting:code>
+    </scripting:execute> -->
+    <remove-variable doc:name="Remove Variable" doc:id="d34ee4cd-d367-47eb-9730-5573ac2c2e83" variableName="binaryPartData"/>
+        <eilog:info doc:name="Info" doc:id="2875f3cd-b5a6-425e-b8ce-b777d2e38665"
+      msg='#["***************************  Uploaded part flow finished"]' transactionProperties="#[vars.transactionProperties]"/>
+  </sub-flow>
+
+  <!--  -->
+
+ 
+</mule>

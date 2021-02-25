@@ -1,0 +1,201 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:vm="http://www.mulesoft.org/schema/mule/vm" xmlns:cps="http://www.mulesoft.org/schema/mule/cps"
+    xmlns:eilog="http://www.mulesoft.org/schema/mule/eilog" xmlns:os="http://www.mulesoft.org/schema/mule/os"
+    xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+    xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd
+http://www.mulesoft.org/schema/mule/eilog http://www.mulesoft.org/schema/mule/eilog/current/mule-eilog.xsd
+http://www.mulesoft.org/schema/mule/cps http://www.mulesoft.org/schema/mule/cps/current/mule-cps.xsd
+http://www.mulesoft.org/schema/mule/vm http://www.mulesoft.org/schema/mule/vm/current/mule-vm.xsd">
+    <http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config"
+        doc:id="f64bdc1e-3020-4c83-aece-9099293dbbe0">
+        <http:listener-connection host="0.0.0.0" port="8081" />
+    </http:listener-config>
+
+
+    <cps:config name="Configuration_Properties_Service_Config"
+        doc:name="Configuration-properties-service Config" doc:id="873fd238-fefd-4053-a9ff-f3f63c6aeb5e"
+        configServerBaseUrl="${cps.configServerBaseUrl}" projectName="${cps.projectName}" environment="${cps.prefix}"
+        clientId="${cps.clientId}" clientSecret="${cps.clientSecret}" configId="cps-config" />
+    <http:request-config name="OAUTH_HTTP_Request_Configuration"
+        doc:name="HTTP Request configuration" doc:id="3965e2a6-d1d2-4126-90df-1dd887e83943"
+        responseTimeout="${oauth.responseTimeout}">
+        <http:request-connection protocol="HTTPS" host="${oauth.host}" port="${oauth.port}"
+            connectionIdleTimeout="${oauth.idleTimeout}" usePersistentConnections="false" />
+    </http:request-config>
+    <http:request-config name="sourceOrg_HTTP_Request_Configuration"
+        doc:name="HTTP Request configuration" doc:id="451b60f4-4ddf-49d5-a725-ac2f2e8f822a"
+        responseTimeout="${sourceOrg.responseTimeout}">
+        <http:request-connection host="${sourceOrg.host}" port="${sourceOrg.port}"
+            connectionIdleTimeout="${sourceOrg.idleTimeout}" protocol="HTTPS" usePersistentConnections="false" />
+    </http:request-config>
+
+    <!-- <http:request-config name="HTTP_Request_configuration" doc:name="HTTP Request configuration" doc:id="219aa4da-581b-42d3-8dab-6602ddbbcca2" 
+        > -->
+    <!-- <http:request-connection protocol="HTTPS" host="${sourceOrg.host}" port="${sourceOrg.port}" /> -->
+    <!-- </http:request-config> -->
+    <os:object-store name="Object_store" doc:name="Object store"
+        doc:id="ee5e606a-d228-4a72-8335-e7161cfd9793" persistent="false" entryTtl="${oauth.objectstore.ttl}" />
+    <flow name="mule-bulk-custom-utilFlow" doc:id="5ea9be85-26ae-4fcd-bb8f-b741f6f7908e">
+        <http:listener doc:name="Listener" doc:id="f8652a6d-f2a3-41fb-9fad-b07390138b9b" path="read-bulk"
+            config-ref="HTTP_Listener_config" />
+        <ee:transform doc:name="Transform Message" doc:id="70d8e058-c8df-48ff-9d95-9892a655a24d">
+            <ee:message>
+            </ee:message>
+            <ee:variables >
+                <ee:set-variable variableName="requestPayload" ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+        <flow-ref doc:name="get-oauth-token" doc:id="ca66aef5-c68b-450f-82df-75e1f2137f6d"
+            name="get-oauth-token" />
+        <ee:transform doc:name="Transform Message" doc:id="d1d6ef5a-6ff2-4644-ab12-69939fa79fb2" >
+            <ee:message >
+                <ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+vars.requestPayload]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+        <flow-ref doc:name="source-query-api-call-subflow" doc:id="e39102c6-aaef-445c-89c6-0a8308ed9191"
+            name="source-query-api-call-subflow" />
+        <set-payload value="#[payload]" doc:name="Set Payload" doc:id="471f75e3-34fb-4457-9515-5f46c5b47638" />
+		<error-handler ref="global-error-handler" />
+	</flow>
+    <sub-flow name="source-query-api-call-subflow" doc:id="65ad6841-cac7-4687-9a3e-5fbe1e868453">
+        <choice doc:name="Choice" doc:id="c72463d9-99bf-46c8-b367-b9059a0a51d6">
+            <when expression="#[vars.oauthRetry=='true']">
+                <until-successful maxRetries="${sourceOrg.apiUntilSuccessful.maxRetries}"
+                    doc:name="Until Successful" doc:id="d94149e0-e0de-4a53-802d-90ffdfb7f5fb"
+                    millisBetweenRetries="${sourceOrg.apiUntilSuccessful.millisBetweenRetries}">
+                    <try doc:name="Try" doc:id="ad226467-f4af-4b33-9f3c-446e6abbd628">
+                        <http:request method="POST" doc:name="BulkQueryRequest"
+                            doc:id="e6819831-51b0-466b-8453-0c4dcd6ba04f"
+                            config-ref="sourceOrg_HTTP_Request_Configuration" path="${query.api.path}"
+                            responseTimeout="${sourceOrg.responseTimeout}">
+                            <http:headers><![CDATA[#[output application/java
+---
+{
+  "Authorization" : vars.authorizationHeader,
+  "Sforce-Auto-Assign" : "FALSE"
+}]]]></http:headers>
+                            <http:response-validator>
+                                <http:success-status-code-validator
+                                    values="${successStatusCodes.withOauth}" />
+                            </http:response-validator>
+                        </http:request>
+                        <error-handler ref="api-connectivity-error-handling" />
+                    </try>
+                </until-successful>
+            </when>
+            <otherwise>
+                <until-successful maxRetries="${sourceOrg.apiUntilSuccessful.maxRetries}"
+                    doc:name="Until Successful" doc:id="2914795b-ecaf-498a-a866-d37e7b48a26d"
+                    millisBetweenRetries="${sourceOrg.apiUntilSuccessful.millisBetweenRetries}">
+                    <try doc:name="Try" doc:id="17f69d4d-ab1a-45bb-98d2-b6f068a68b8d">
+                        <http:request method="POST" doc:name="BulkQueryRequest"
+                            doc:id="3eb62c87-e81a-4cdc-a793-ba0abdecb56e"
+                            config-ref="sourceOrg_HTTP_Request_Configuration" path="${query.api.path}"
+                            responseTimeout="${sourceOrg.responseTimeout}">
+                            <http:headers><![CDATA[#[output application/java
+---
+{
+	"Authorization" : vars.authorizationHeader
+}]]]></http:headers>
+                            <http:response-validator>
+                                <http:success-status-code-validator
+                                    values="${successStatusCodes.withoutOauth}" />
+                            </http:response-validator>
+                        </http:request>
+                        <error-handler ref="api-connectivity-error-handling" />
+                    </try>
+                </until-successful>
+            </otherwise>
+        </choice>
+    </sub-flow>
+    <sub-flow name="get-oauth-token" doc:id="19295098-bbb8-4fa3-8e8e-e0a268206247">
+        <ee:transform doc:name="setting oauth call params" doc:id="33a0c74c-f2b8-490c-8829-b49053352ece">
+            <ee:message>
+            </ee:message>
+            <ee:variables>
+                <ee:set-variable variableName="oauthCallParams"><![CDATA[%dw 2.0
+output application/json
+---
+{
+objectStoreKey : 'sourceAuthorizationHeader',
+endpointSystem: Mule::p('soureOrgName'),
+clientId: Mule::p('sourceOrg.clientId'),
+clientSecret: Mule::p('sourceOrg.clientSecret'),
+oauthUserName: Mule::p('sourceOrg.username'),
+oauthPassword: Mule::p('sourceOrg.password'),
+}]]></ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+        <os:contains doc:name="Contains" doc:id="f6230626-4acc-4ea5-bd51-31c2aa0533e4"
+            key="#[vars.oauthCallParams.objectStoreKey]" objectStore="Object_store" />
+        <choice doc:name="apiCheck">
+            <when expression="#[payload !=true]">
+                <flow-ref name="oauth-api-call" doc:name="oauth-api-call" />
+                <os:store doc:name="Store-sourceAuthorizationHeader"
+                    doc:id="c45b23f0-80d1-495c-84e5-0c217a48bd62" key="sourceAuthorizationHeader"
+                    objectStore="Object_store">
+                    <os:value><![CDATA[#[vars.authorizationHeader]]]></os:value>
+                </os:store>
+            </when>
+            <otherwise>
+                <os:retrieve doc:name="Retrieve" doc:id="f290f3a0-4b6a-443b-9361-cbc6fdf100d8"
+                    key="#[vars.oauthCallParams.objectStoreKey]" target="authorizationHeader" objectStore="Object_store" />
+            </otherwise>
+        </choice>
+    </sub-flow>
+    <sub-flow name="oauth-api-call">
+        <set-variable value="#[payload]" doc:name="Set tempPayload"
+            doc:id="9518d6ef-2bf3-422c-bed2-7cce52aa5780" variableName="tempPayload" />
+        <set-payload
+            value='#[%dw 2.0
+output application/java
+---
+"grant_type=" ++ "${oauth.grantType}" ++ "&amp;client_id=" ++ vars.oauthCallParams.clientId ++ "&amp;client_secret=" ++ vars.oauthCallParams.clientSecret ++ "&amp;username=" ++ vars.oauthCallParams.oauthUserName ++ "&amp;password=" ++ vars.oauthCallParams.oauthPassword]'
+            doc:name="payloadForOauth" doc:id="875b489f-19b6-479a-a390-e2e8c93f5c12" mimeType="application/java" />
+        <eilog:info doc:name="Info" doc:id="9f9851c4-e3e6-4d4e-9dee-9cf721320500"
+            msg="#[vars.oauthCallParams.endpointSystem ++ ' oauth Api call']" />
+        <until-successful maxRetries="${oauthUntilSuccessful.maxRetries}"
+            millisBetweenRetries="${oauthUntilSuccessful.millisBetweenRetries}" doc:name="Until Successful">
+            <try doc:name="Try" doc:id="833fa31c-e240-4877-8f33-ce767eb77545">
+                <http:request path="${oauth.tokenPath}" method="POST" doc:name="oAuthTokenCall"
+                    responseTimeout="${oauth.responseTimeout}" config-ref="OAUTH_HTTP_Request_Configuration">
+                    <http:headers><![CDATA[#[output application/java
+---
+{
+	"Content-Type" : "application/x-www-form-urlencoded"
+}]]]></http:headers>
+                    <http:response-validator>
+                        <http:success-status-code-validator
+                            values="${successStatusCodes}" />
+                    </http:response-validator>
+                </http:request>
+                <error-handler ref="api-connectivity-error-handling" />
+            </try>
+        </until-successful>
+        <ee:transform doc:name="authorization header" doc:id="6e254e79-a7e2-4360-b65d-e49eb129a286">
+            <ee:message>
+            </ee:message>
+            <ee:variables>
+                <ee:set-variable variableName="authorizationHeader"><![CDATA[%dw 2.0
+output application/java
+---
+payload.token_type ++ " " ++ payload.access_token]]></ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+        <set-payload value="#[vars.tempPayload]" doc:name="Set Payload"
+            doc:id="bd89cb31-907e-4583-b3f0-ea27115ac94b" />
+        <remove-variable doc:name="Remove Variable" doc:id="8b21e8b4-2517-40eb-8f5c-bae88e63a67f"
+            variableName="tempPayload" />
+    </sub-flow>
+</mule>

@@ -1,0 +1,52 @@
+{
+  "redeploymentEnabled": true,
+    "name": "aws-mule-bulk-custom-util",
+    "classLoaderModelLoaderDescriptor": {
+        "attributes": {
+            "exportedResources": [
+            	
+                "common.properties"
+                
+            ],
+            "exportedPackages": [
+                
+            ]
+        },
+        "id": "mule"
+    },
+    "requiredProduct": "MULE_EE",
+    "minMuleVersion": "4.3.0",
+    "bundleDescriptorLoader": {
+        "attributes": {},
+        "id": "mule"
+    },
+    "secureProperties": [
+        "cps.keyId,cps.clientId",
+        "cps.clientSecret",
+        "sourceOrg.username",
+        "sourceOrg.password",
+        "sourceOrg.securityToken",
+        "sourceOrg.authorizationUrl",
+        "sourceOrg.clientSecret",
+		"sourceOrg.clientId",
+		"aws.s3.accessKey",
+		"aws.s3.secretKey",
+        "my.client_secret",
+        "splunk.aws.firehose.secretKey",
+        "anypoint.platform.client_secret",
+        "mule_cps_keystore_password",
+        "mule_cps_key_password",
+        "mule_cps_keystore_filename",
+        "mule_cps_keystore_client_secret",     
+        "key1",
+        "key2",
+        "key3",
+        "key4",
+        "key5",
+        "key6",
+        "key7",
+        "key8",
+        "key9",
+        "key10"
+    ]
+}

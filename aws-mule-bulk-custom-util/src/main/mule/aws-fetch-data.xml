@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:compression="http://www.mulesoft.org/schema/mule/compression"
+	xmlns:scripting="http://www.mulesoft.org/schema/mule/scripting" xmlns:eilog="http://www.mulesoft.org/schema/mule/eilog"
+	xmlns:file="http://www.mulesoft.org/schema/mule/file"
+	xmlns:xml-module="http://www.mulesoft.org/schema/mule/xml-module" xmlns:get-contacts-api="http://www.mulesoft.org/schema/mule/get-contacts-api" xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:s3="http://www.mulesoft.org/schema/mule/s3" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/scripting http://www.mulesoft.org/schema/mule/scripting/current/mule-scripting.xsd http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/s3 http://www.mulesoft.org/schema/mule/s3/current/mule-s3.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd
+http://www.mulesoft.org/schema/mule/get-contacts-api http://www.mulesoft.org/schema/mule/get-contacts-api/current/mule-get-contacts-api.xsd
+http://www.mulesoft.org/schema/mule/xml-module http://www.mulesoft.org/schema/mule/xml-module/current/mule-xml-module.xsd
+http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd
+http://www.mulesoft.org/schema/mule/eilog http://www.mulesoft.org/schema/mule/eilog/current/mule-eilog.xsd
+http://www.mulesoft.org/schema/mule/compression http://www.mulesoft.org/schema/mule/compression/current/mule-compression.xsd">
+	
+	<flow name="fetch-aws-data" doc:id="e563a20e-8bb8-4384-8051-467671da1e23" >
+		<http:listener doc:name="Listener" doc:id="4852181b-187a-49ff-a4f5-a5ce7dc771ee" config-ref="HTTP_Listener_config" path="/fetch-aws"/>
+		<eilog:info doc:name="Info" doc:id="3fefe8f5-8d17-4d40-a480-548f19298324" msg="reading started"/>
+		<set-variable value="#[attributes.queryParams.key]" doc:name="key" doc:id="7ea641ea-42bb-4d39-be3d-f5cc3e9283b2" variableName="key"/>
+		<s3:get-object doc:name="Get object" doc:id="cdd7e66c-198b-4494-950b-c910aae22336" config-ref="Amazon_S3_Configuration" bucketName="${aws.s3.bucket.name}" key="#[vars.key]"/>
+		<ee:transform doc:name="Transform Message" doc:id="2d23dc46-d080-4d75-a73c-cce4d9519f6b" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/csv
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<file:write doc:id="b19e2ed9-178c-4156-a112-05dff116b7e7" path='#["/Users/ashwani.tripathi/Projects/datahub_poc/aws-files/" ++ vars.key ++ ".csv"]'/>
+		<eilog:info doc:name="Info" doc:id="bba8aa87-6ad6-43b1-8fcf-3dea6e5800c3" msg="reading end"/>
+	</flow>
+	<flow name="aws-fetch-dataFlow" doc:id="4684953a-7676-4b92-8ac5-5b46c538e506" >
+		<http:listener doc:name="Listener" doc:id="caa8ac5a-37c7-4033-b3e7-e3af5e0b5f8b" config-ref="HTTP_Listener_config" path="/test"/>
+		<set-variable value="#[1 to 100]" doc:name="Set Variable" doc:id="579d0d76-f7fd-43b1-a90b-4e1c66d1e2a7" variableName="range"/>
+		<parallel-foreach doc:name="Parallel For Each" doc:id="9754f447-37a7-4613-955d-249babb7bb6f" collection="vars.range" maxConcurrency="10">
+			<set-variable value="#[%dw 2.0
+import java!com::sfdc::it::ei::mule4::sync::util::PartNumberUtil
+output application/java
+---
+PartNumberUtil::generatePartNumber()]" doc:name="Set Variable" doc:id="1ef218a3-46be-40f0-979a-cd10a3d33e55" variableName="partNumber"/>
+			<logger level="INFO" doc:name="Logger" doc:id="ddaa3eb4-4bae-4044-8b6c-7ae1cfc60e0c" message='#["part number is" ++ vars.partNumber]'/>
+		</parallel-foreach>
+	</flow>
+	
+	
+	
+</mule>

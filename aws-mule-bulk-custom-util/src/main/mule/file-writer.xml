@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:file="http://www.mulesoft.org/schema/mule/file"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+    <file:config name="File_Config" doc:name="File Config" doc:id="1e9936a3-d80c-4ae7-811e-e9f7f7e76690" >
+        <file:connection workingDir="/Users/sharmaprashant/Desktop/testFiles" />
+    </file:config>
+    <sub-flow name="file-writer-subflow" doc:id="df8e4cc9-16a7-4d4c-9d05-34ec600a3d7e" >
+        <choice doc:name="Choice" doc:id="e79b70fd-199d-49c5-b428-2997d55a4980" >
+            <when expression="#[vars.fileExists == true]">
+                <file:write doc:name="Write_Append" doc:id="09a32952-cc42-4573-be49-660c4247cd23" config-ref="File_Config" path="#[vars.filePath]" mode="APPEND">
+                    <file:content><![CDATA[#[%dw 2.0
+output application/csv
+---
+payload]]]></file:content>
+                </file:write>
+            </when>
+            <otherwise >
+                <ee:transform doc:name="Transform Message" doc:id="91907c71-24f3-498c-9a06-f2bd6690f1d7">
+                    <ee:message>
+                    </ee:message>
+                    <ee:variables >
+                        <ee:set-variable variableName="fileExists" ><![CDATA[%dw 2.0
+output application/json
+---
+true]]></ee:set-variable>
+                        <ee:set-variable variableName="filePath" ><![CDATA[%dw 2.0
+import * from dw::util::Timer
+output application/json
+---
+vars.jobId ++ "-" ++ currentMilliseconds() ++ ".csv"]]></ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+                <file:write doc:name="Write_New" doc:id="2d39d22d-4b24-461f-93ba-110c12f6ff76" config-ref="File_Config" path="#[vars.filePath]" mode="APPEND">
+            <file:content><![CDATA[#[%dw 2.0
+output application/csv header=true
+---
+payload]]]></file:content>
+        </file:write>
+            </otherwise>
+        </choice>
+    </sub-flow>
+</mule>

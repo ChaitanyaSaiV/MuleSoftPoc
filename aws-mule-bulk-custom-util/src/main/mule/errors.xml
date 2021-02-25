@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:eilog="http://www.mulesoft.org/schema/mule/eilog" xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/eilog http://www.mulesoft.org/schema/mule/eilog/current/mule-eilog.xsd">
+	<error-handler name="global-error-handler" doc:id="059c7253-2603-41fe-9860-d7e569555555" >
+		<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="95ad5961-a206-4d5f-81fe-7aee08429a04" >
+			<eilog:error doc:name="Copy_of_Error" doc:id="a54d86b4-e72a-4102-97eb-ca808d9eb50a" msg="Error while processing the request." />
+		</on-error-propagate>
+	</error-handler>
+	<error-handler name="api-connectivity-error-handling" doc:id="66b18153-0249-43a7-9ba6-33aaa5429b1d" >
+        <on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="1b7500e4-9c51-4cd5-8df8-41f104d13381" >
+            <eilog:error doc:name="Error" doc:id="85db6dc9-1538-473d-8455-bd7267745ff1" msg="Error while sending the request." />
+        </on-error-propagate>
+    </error-handler>
+	
+	
+	</mule>
