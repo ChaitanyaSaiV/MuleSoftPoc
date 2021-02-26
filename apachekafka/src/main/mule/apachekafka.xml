@@ -1,5 +1,40 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<mule xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
-	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd"></mule>
+<mule xmlns:kafka="http://www.mulesoft.org/schema/mule/kafka" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/kafka http://www.mulesoft.org/schema/mule/kafka/current/mule-kafka.xsd">
+	<kafka:producer-config name="Apache_Kafka_Producer_configuration" doc:name="Apache Kafka Producer configuration" doc:id="43159083-cec7-444d-821d-936a7e4c92db" >
+		<kafka:producer-plaintext-connection>
+			<kafka:bootstrap-servers >
+				<kafka:bootstrap-server value="localhost:9092" />
+			</kafka:bootstrap-servers>
+		</kafka:producer-plaintext-connection>
+	</kafka:producer-config>
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="10660c09-42ae-4e8d-9622-25f31be29688" >
+		<http:listener-connection host="0.0.0.0" port="8081" />
+	</http:listener-config>
+	<kafka:consumer-config name="Apache_Kafka_Consumer_configuration" doc:name="Apache Kafka Consumer configuration" doc:id="2c65ef46-7b54-4d8e-ac22-84c6a9fb9fe7" >
+		<kafka:consumer-plaintext-connection groupId="test-consumer-group" >
+			<kafka:bootstrap-servers >
+				<kafka:bootstrap-server value="localhost:9092" />
+			</kafka:bootstrap-servers>
+			<kafka:topic-patterns >
+				<kafka:topic-pattern value="MuleSoft" />
+			</kafka:topic-patterns>
+		</kafka:consumer-plaintext-connection>
+	</kafka:consumer-config>
+	<flow name="apachekafkaFlow" doc:id="64d3b9fa-0fe1-42f1-abbb-8530a8a94e9f" >
+		<http:listener doc:name="Listener" doc:id="0b341b61-6dd9-4f42-8edb-f90b3d732742" config-ref="HTTP_Listener_config" path="/*"/>
+		<logger level="INFO" doc:name="Logger" doc:id="bd76be69-d880-4a45-b381-3cab0b213525" message="Start"/>
+		<kafka:publish doc:name="Publish" doc:id="4bdf211e-7fab-4554-a964-ec072d6951bc" config-ref="Apache_Kafka_Producer_configuration" topic="MuleSoft" partition="1">
+			<kafka:message ><![CDATA[First Message]]></kafka:message>
+		</kafka:publish>
+	</flow>
+	<flow name="apachekafkaFlow1" doc:id="4b66083b-cf1f-4e98-86ed-44c1d5209caa" >
+		<kafka:message-listener doc:name="Message listener" doc:id="9a12a968-2a66-4fd7-ae82-3996d42d1bfa" config-ref="Apache_Kafka_Consumer_configuration"/>
+		<logger level="INFO" doc:name="Logger" doc:id="92fa205b-8356-4989-8fa9-d75d3986b444" />
+		<logger level="INFO" doc:name="Logger" doc:id="19a38f78-c16a-410f-b97e-6e8aeefdf5cd" message="End"/>
+	</flow>
+</mule>
