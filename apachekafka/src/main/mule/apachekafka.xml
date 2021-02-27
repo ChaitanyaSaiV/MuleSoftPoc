@@ -28,13 +28,12 @@ http://www.mulesoft.org/schema/mule/kafka http://www.mulesoft.org/schema/mule/ka
 	<flow name="apachekafkaFlow" doc:id="64d3b9fa-0fe1-42f1-abbb-8530a8a94e9f" >
 		<http:listener doc:name="Listener" doc:id="0b341b61-6dd9-4f42-8edb-f90b3d732742" config-ref="HTTP_Listener_config" path="/*"/>
 		<logger level="INFO" doc:name="Logger" doc:id="bd76be69-d880-4a45-b381-3cab0b213525" message="Start"/>
-		<kafka:publish doc:name="Publish" doc:id="4bdf211e-7fab-4554-a964-ec072d6951bc" config-ref="Apache_Kafka_Producer_configuration" topic="MuleSoft" partition="1">
+		<kafka:publish doc:name="Publish" doc:id="4bdf211e-7fab-4554-a964-ec072d6951bc" config-ref="Apache_Kafka_Producer_configuration" topic="MuleSoft" partition="0">
 			<kafka:message ><![CDATA[First Message]]></kafka:message>
 		</kafka:publish>
 	</flow>
-	<flow name="apachekafkaFlow1" doc:id="4b66083b-cf1f-4e98-86ed-44c1d5209caa" >
-		<kafka:message-listener doc:name="Message listener" doc:id="9a12a968-2a66-4fd7-ae82-3996d42d1bfa" config-ref="Apache_Kafka_Consumer_configuration"/>
-		<logger level="INFO" doc:name="Logger" doc:id="92fa205b-8356-4989-8fa9-d75d3986b444" />
-		<logger level="INFO" doc:name="Logger" doc:id="19a38f78-c16a-410f-b97e-6e8aeefdf5cd" message="End"/>
+	<flow name="apachekafkaFlow1" doc:id="01581d1d-d907-4b95-8031-23e8b2eb9ea9" >
+		<kafka:message-listener doc:name="Message listener" doc:id="2baf0850-de52-4f2f-9299-c4749b6a41e8" config-ref="Apache_Kafka_Consumer_configuration"/>
+		<logger level="INFO" doc:name="Logger" doc:id="589f6513-b737-452b-b4cc-b7368a73bea5" message="#[payload]"/>
 	</flow>
 </mule>
